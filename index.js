@@ -2,7 +2,7 @@
 
 // usage
 var yargs = require('yargs')(process.argv.slice(2))
-    .usage('Calculate the npm and bower modules used in this project and generate a third-party attribution (credits) text.')
+    .usage('Calculate the npm modules used in this project and generate a third-party attribution (credits) text.')
     .option('outputDir', {
         alias: 'o',
         type: 'string',
@@ -16,7 +16,7 @@ var yargs = require('yargs')(process.argv.slice(2))
         description: 'Base directory(ies) to scan for dependencies'
     })
     .example('$0 -o ./tpn', 'run the tool and output text and backing json to ${projectRoot}/tpn directory.')
-    .example('$0 -b ./some/path/to/projectDir', 'run the tool for Bower/NPM projects in another directory.')
+    .example('$0 -b ./some/path/to/projectDir', 'run the tool for NPM projects in another directory.')
     .example('$0 -o tpn -b ./some/path/to/projectDir', 'run the tool in some other directory and dump the output in a directory called "tpn" there.')
     .help('h')
     .alias('h', 'help');
@@ -27,7 +27,6 @@ var argv = yargs.argv;
 var bluebird = require('bluebird');
 var _ = require('lodash');
 var npmchecker = require('license-checker');
-var bower = require('bower');
 var path = require('path');
 var jetpack = require('fs-jetpack');
 var cp = require('child_process');
@@ -200,115 +199,6 @@ function getNpmLicenses() {
         });
 }
 
-/**
- * TL;DR - normalizing the output format for NPM & Bower license info
- *
- * The output from license-checker gives us what we need:
- *  - component name
- *  - version
- *  - authors (note: not returned by license-checker, we have to apply our heuristic)
- *  - url
- *  - license(s)
- *  - license contents OR license snippet (in case of license embedded in markdown)
- *
- * Where we calculate the license information manually for Bower components,
- * we'll return an object with these properties.
- */
-function getBowerLicenses() {
-    // first - check that this is even a bower project
-    var baseDir;
-    if (Array.isArray(options.baseDir)) {
-        baseDir = options.baseDir[0];
-        if (options.baseDir.length > 1) {
-            console.warn("Checking multiple directories is not yet supported for Bower projects.\n" +
-                "Checking only the first directory: " + baseDir);
-        }
-    }
-    if (!jetpack.exists(path.join(baseDir, 'bower.json'))) {
-        console.log('this does not look like a Bower project, skipping Bower checks.');
-        return bluebird.resolve([]);
-    }
-
-    bower.config.cwd = baseDir;
-    var bowerComponentsDir = path.join(bower.config.cwd, bower.config.directory);
-    return jetpack.inspectTreeAsync(bowerComponentsDir, { relativePath: true })
-        .then((result) => {
-            /**
-             * for each component, try to calculate the license from the NPM package info
-             * if it is a available because license-checker more closely aligns with our
-             * objective.
-             */
-            return bluebird.map(result.children, (component) => {
-                var absPath = path.join(bowerComponentsDir, component.relativePath);
-                // npm license check didn't work
-                // try to get the license and package info from .bower.json first
-                // because it has more metadata than the plain bower.json
-      
-                var package = '';
-      
-                try {
-                  package = jetpack.read(path.join(absPath, '.bower.json'), 'json');
-                } catch (e) {
-                  package = jetpack.read(path.join(absPath, 'bower.json'), 'json');
-                }
-      
-                console.log('processing', package.name);
-                // assumptions here based on https://github.com/bower/spec/blob/master/json.md
-                // extract necessary properties as described in TL;DR above
-                var url = package["_source"] || (package.repository && package.repository.url) ||
-                  package.url || package.homepage;
-      
-                var authors = '';
-
-                if (package.authors) {
-                  authors = _.map(package.authors, a => {
-                    return getAttributionForAuthor(a);
-                  }).join(', ');
-                } else {
-                  // extrapolate author from url if it's a github repository
-                  var githubMatch = url.match(/github\.com\/.*\//);
-
-                  if (githubMatch) {
-                    authors = githubMatch[0]
-                      .replace('github.com', '')
-                      .replace(/\//g, '');
-                  }
-                }
-      
-                // normalize the license object
-                package.license = package.license || package.licenses;
-
-                var licenses = package.license && _.isString(package.license)
-                    ? package.license
-                    : _.isArray(package.license)
-                      ? package.license.join(',')
-                      : package.licenses;
-      
-                // find the license file if it exists
-                var licensePath = _.find(component.children, c => {
-                  return /licen[cs]e/i.test(c.name);
-                });
-
-                var licenseText = null;
-
-                if (licensePath) {
-                  licenseText = jetpack.read(path.join(bowerComponentsDir, licensePath.relativePath));
-                }
-      
-                return {
-                  ignore: false,
-                  name: package.name,
-                  version: package.version || package['_release'],
-                  authors: authors,
-                  url: url,
-                  license: licenses,
-                  licenseText: licenseText
-                };
-            }, {
-                concurrency: os.cpus().length
-            });
-        });
-}
 
 /***********************
  *
@@ -327,19 +217,15 @@ for (var i = 0; i < argv.baseDir.length; i++) {
 }
 
 
-taim('Total Processing', bluebird.all([
-    getNpmLicenses(),
-    getBowerLicenses()
-]))
+taim('Total Processing', getNpmLicenses())
     .catch((err) => {
         console.log(err);
         process.exit(1);
     })
-    .spread((npmOutput, bowerOutput) => {
+    .then((npmOutput) => {
         var o = {};
-        npmOutput = npmOutput || {};
-        bowerOutput = bowerOutput || {};
-        _.concat(npmOutput, bowerOutput).forEach((v) => {
+        npmOutput = npmOutput || [];
+        npmOutput.forEach((v) => {
             o[v.name] = v;
         });
 

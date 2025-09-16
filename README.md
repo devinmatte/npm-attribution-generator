@@ -7,6 +7,7 @@ This project is based on the work of [zumwald/oss-attribution-generator](https:/
 
 ### Major Updates (v2.0.0)
 
+- **Removed Bower support** - Bower is deprecated and no longer used
 - **Updated dependencies** to modern versions for better security and compatibility
 - **Fixed yargs API compatibility** for version 18+ 
 - **Improved error handling** with better user feedback
@@ -78,4 +79,3 @@ Like most software, this component is built on the shoulders of giants; npm-attr
   - [zumwald/oss-attribution-generator](https://github.com/zumwald/oss-attribution-generator)
   - [license-checker](https://github.com/davglass/license-checker)
   - [node-licensecheck](https://github.com/iceddev/node-licensecheck)
-  - [bower-license](https://github.com/AceMetrix/bower-license)
