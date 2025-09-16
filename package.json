@@ -28,6 +28,10 @@
     "credit"
   ],
   "author": "Dan Zumwalt",
+  "contributors": [
+    "Dan Zumwalt",
+    "Devin Matte"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/devinmatte/npm-attribution-generator/issues"
