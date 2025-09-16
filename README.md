@@ -1,12 +1,25 @@
-# oss-attribution-generator
-utility to parse bower and npm packages used in a project and generate an attribution file to include in your product
+# npm-attribution-generator
+utility to parse npm packages used in a project and generate an attribution file to include in your product
+
+## Fork of oss-attribution-generator
+
+This project is based on the work of [zumwald/oss-attribution-generator](https://github.com/zumwald/oss-attribution-generator). 
+
+### Major Updates (v2.0.0)
+
+- **Updated dependencies** to modern versions for better security and compatibility
+- **Fixed yargs API compatibility** for version 18+ 
+- **Improved error handling** with better user feedback
+- **Added node_modules detection** with helpful error messages
+- **Enhanced package counting** to show how many packages were processed
+- **Removed deprecation warnings** for cleaner output
 
 ## Installation
-`npm i -g oss-attribution-generator`
+`npm i -g npm-attribution-generator`
 
 ## Usage
 
-### For a single Bower or Node project
+### For a single Node project
 ```
 cd pathToYourProject
 generate-attribution
@@ -15,8 +28,6 @@ git commit -m 'adding open source attribution output from oss-attribution-genera
 ```
 
 ### For multiple projects
-
-*(This feature is currently only supported for Node projects)*
 
 For Node.js projects that use other Node.js projects located in different directories, the `-b` option can be used to provide a variable number of input directories. Each of the input directories are processed, and any duplicate entries (dependencies with same name and version number) are combined to produce a single attribution text.
 
@@ -63,7 +74,8 @@ Other times, you may need to supply your own text for the purpose of the attribu
 ```
 
 ## Prior art
-Like most software, this component is built on the shoulders of giants; oss-attribution-generator was inspired in part by the following work:
+Like most software, this component is built on the shoulders of giants; npm-attribution-generator was inspired in part by the following work:
+  - [zumwald/oss-attribution-generator](https://github.com/zumwald/oss-attribution-generator)
   - [license-checker](https://github.com/davglass/license-checker)
   - [node-licensecheck](https://github.com/iceddev/node-licensecheck)
   - [bower-license](https://github.com/AceMetrix/bower-license)

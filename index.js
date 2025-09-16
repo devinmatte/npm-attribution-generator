@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 
 // usage
-var yargs = require('yargs')
-    .usage('Calculate the npm and bower modules used in this project and generate a third-party attribution (credits) text.',
-    {
-        outputDir: {
-            alias: 'o',
-            default: './oss-attribution'
-        },
-        baseDir: {
-            alias: 'b',
-            default: process.cwd(),
-        }
+var yargs = require('yargs')(process.argv.slice(2))
+    .usage('Calculate the npm and bower modules used in this project and generate a third-party attribution (credits) text.')
+    .option('outputDir', {
+        alias: 'o',
+        type: 'string',
+        default: './oss-attribution',
+        description: 'Output directory for attribution files'
     })
-    .array('baseDir')
+    .option('baseDir', {
+        alias: 'b',
+        type: 'array',
+        default: [process.cwd()],
+        description: 'Base directory(ies) to scan for dependencies'
+    })
     .example('$0 -o ./tpn', 'run the tool and output text and backing json to ${projectRoot}/tpn directory.')
     .example('$0 -b ./some/path/to/projectDir', 'run the tool for Bower/NPM projects in another directory.')
-    .example('$0 -o tpn -b ./some/path/to/projectDir', 'run the tool in some other directory and dump the output in a directory called "tpn" there.');
+    .example('$0 -o tpn -b ./some/path/to/projectDir', 'run the tool in some other directory and dump the output in a directory called "tpn" there.')
+    .help('h')
+    .alias('h', 'help');
 
-if (yargs.argv.help) {
-    yargs.showHelp();
-    process.exit(1);
-}
+var argv = yargs.argv;
 
 // dependencies
 var bluebird = require('bluebird');
@@ -68,6 +68,14 @@ function getNpmLicenses() {
             console.log('directory at "' + npmDirs[i] + '" does not look like an NPM project, skipping NPM checks for path ' + npmDirs[i]);
             return [];
         }
+        
+        // Check if node_modules exists
+        if (!jetpack.exists(path.join(npmDirs[i], 'node_modules'))) {
+            console.log('WARNING: No node_modules directory found in "' + npmDirs[i] + '".');
+            console.log('Please run "npm install" or "yarn install" in that directory first.');
+            console.log('Skipping NPM checks for path ' + npmDirs[i]);
+            return [];
+        }
     }
     console.log('Looking at directories: ' + npmDirs)
 
@@ -84,7 +92,9 @@ function getNpmLicenses() {
                 }, function (err, json) {
                     if (err) {
                         //Handle error
-                        console.error(err);
+                        console.error('Error scanning directory "' + dir + '":', err.message);
+                        console.error('This might be due to corrupted package.json or node_modules. Try running "npm install" again.');
+                        return cb(err, {});
                     } else {
                         Object.getOwnPropertyNames(json).forEach(k => {
                             json[k]['dir'] = dir;
@@ -96,7 +106,7 @@ function getNpmLicenses() {
         );
     }
     if (checkers.length === 0) {
-        return [];
+        return bluebird.resolve({});
     }
 
     return bluebird.all(checkers)
@@ -216,7 +226,7 @@ function getBowerLicenses() {
     }
     if (!jetpack.exists(path.join(baseDir, 'bower.json'))) {
         console.log('this does not look like a Bower project, skipping Bower checks.');
-        return [];
+        return bluebird.resolve([]);
     }
 
     bower.config.cwd = baseDir;
@@ -309,16 +319,16 @@ function getBowerLicenses() {
 // sanitize inputs
 var options = {
     baseDir: [],
-    outputDir: path.resolve(yargs.argv.outputDir)
+    outputDir: path.resolve(argv.outputDir)
 };
 
-for (var i = 0; i < yargs.argv.baseDir.length; i++) {
-    options.baseDir.push(path.resolve(yargs.argv.baseDir[i]));
+for (var i = 0; i < argv.baseDir.length; i++) {
+    options.baseDir.push(path.resolve(argv.baseDir[i]));
 }
 
 
 taim('Total Processing', bluebird.all([
-    taim('Npm Licenses', getNpmLicenses()),
+    getNpmLicenses(),
     getBowerLicenses()
 ]))
     .catch((err) => {
@@ -368,6 +378,9 @@ taim('Total Processing', bluebird.all([
         }
 
         jetpack.write(path.join(options.outputDir, 'licenseInfos.json'), JSON.stringify(licenseInfos));
+
+        var packageCount = Object.keys(licenseInfos).length;
+        console.log('Generated attribution for ' + packageCount + ' packages');
 
         return jetpack.write(path.join(options.outputDir, 'attribution.txt'), attribution);
     })
